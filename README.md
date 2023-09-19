@@ -13,5 +13,5 @@ First contract deployment in starknet-goerli test net
 - Setting class_hash value into json file and reading it for deployment purposes
 
 ```
-git clone 
+git clone https://github.com/ASaidOguz/Starknet-Cairo
 ```
