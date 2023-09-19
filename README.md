@@ -3,7 +3,7 @@
 First contract deployment in starknet-goerli test net
 
 - Created make file to automate the deployment 
-- Created makefile for
+- Created  
    - Key
    - account
    - account deployment
