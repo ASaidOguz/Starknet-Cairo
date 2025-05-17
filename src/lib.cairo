@@ -8,11 +8,14 @@ trait MyContractInterface<T> {
 
 #[starknet::contract]
 mod nine_cairo {
+   
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    
     #[storage]
     struct Storage {
         name: felt252,
     }
-
+   
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
@@ -30,7 +33,7 @@ mod nine_cairo {
         self.name.write(name);
     }
 
-    #[external(v0)]
+    #[abi(embed_v0)]
     impl MyContract of super::MyContractInterface<ContractState> {
         fn name_get(self: @ContractState) -> felt252 {
             self.name.read()

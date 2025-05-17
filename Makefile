@@ -1,45 +1,31 @@
--include .env
+# ========= StarkNet Makefile =========
 
-help:
-	@echo "Usage:"
-	@echo "make create_key  \n[creates key.json file and exports it as env variable]"
-	@echo ""
-	@echo "make create_account \n[after creation you need to fund your account in starknet faucet]"
-	@echo ""
-	@echo "  make declare_contract [ARGS=...]\n    example: make deploy FOLDER_NAME="first_contract" CONTRACT_NAME="hello_cairo""
-	@echo ""
-	@echo "  make deploy [ARGS=...]\n    example: make deploy CONTRACT_NAME="first_cairo" ARGS="starkli""
-#key creation
-create_key:
-	@echo "creating key..."
-	@starkli signer keystore new key.json
-	@echo "key created dont forget to run  "export STARKNET_KEYSTORE="key.json"""
-#account creation
-create_account:
-	@echo "creating account..."
-	@starkli account oz init account.json
-	@echo "account created now please fund and deploy the account"
-#account deployment
-deploy_account:
-	@echo "account deployment in progress"
-	@starkli account deploy account.json
-	@echo "account deployment completed dont forget to run  "export STARKNET_ACCOUNT="account.json"""
-#build the current project
-build:
-	@scarb build
-#Declare contract and prepare for deployment
-declare_contract:
-	@starkli declare --account $(STARKNET_ACCOUNT) --watch ./target/dev/$(FOLDER_NAME)_$(CONTRACT_NAME).sierra.json
-	@class_hash_value=$$(starkli class-hash target/dev/$(FOLDER_NAME)_$(CONTRACT_NAME).sierra.json); \
-	 json_object="{ \"class_hash\": \"$$class_hash_value\" }"; \
-	 echo "$$json_object" > $(CONTRACT_NAME)_class_hash.json
-#Specialized deployment for string types
+start_dev:
+	starknet-devnet --seed=0
+
+set_account:
+	sncast account import \
+	--address=0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691 \
+	--type=oz \
+	--url=http://127.0.0.1:5050 \
+	--private-key=0x0000000000000000000000000000000071d7bb07b9a64f6f78ac4c816aff4da9 \
+	--add-profile=devnet \
+	--silent
+
+declare_local:
+	sncast --profile=devnet declare --contract-name=$(CONTRACT_NAME)
+
 deploy_contract:
-	@CLASS_HASH=$$(jq -r '.class_hash' $(CONTRACT_NAME)_class_hash.json); \
-    SHORT_STRING=$$( starkli to-cairo-string $(ARGS));	\
-	starkli deploy $$CLASS_HASH $$SHORT_STRING
+	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
+	sncast --profile=devnet deploy --class-hash=$(CLASS_HASH) --salt=0 --constructor-calldata=$$FELT_ARG
 
-
-
-
-
+invoke_string_arg:
+	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
+	sncast --profile=devnet invoke --contract-address $(ADDRESS) --function $(FUNC) --arguments $$FELT_ARG
+call_string_arg:
+	@RESULT=$$(sncast --profile=devnet call \
+		--contract-address=$(ADDRESS) \
+		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
+	echo "Raw felt: $$RESULT"; \
+	echo -n "Decoded: "; \
+	python3 felt252convert.py --to-str-hex $$RESULT
