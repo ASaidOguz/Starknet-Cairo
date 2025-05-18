@@ -36,21 +36,48 @@ set_account:
 	--add-profile=devnet \
 	--silent
 
+set_sepolia_account:
+	sncast account create --network=sepolia --name=sepolia
+
+deploy_sepolia_account:
+	sncast account deploy --network sepolia --name sepolia
+
 declare_local:
 	sncast --profile=devnet declare --contract-name=$(CONTRACT_NAME)
+declare_sepolia:
+	sncast --account=sepolia declare \
+    --contract-name=$(CONTRACT_NAME) \
+    --network=sepolia
 
 deploy_contract:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
 	sncast --profile=devnet deploy --class-hash=$(CLASS_HASH) --salt=0 --constructor-calldata=$$FELT_ARG
 
-invoke_string_arg:
+deploy_contract_sepolia:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --profile=devnet invoke --contract-address $(ADDRESS) --function $(FUNC) --arguments $$FELT_ARG
+	sncast --account=sepolia deploy --class-hash=$(CLASS_HASH) --network sepolia --constructor-calldata=$$FELT_ARG
 
-call_string_arg:
+invoke_str:
+	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
+	sncast --profile=devnet invoke --contract-address $(ADDRESS) --network sepolia --function $(FUNC) --arguments $$FELT_ARG
+
+invoke_str_sepolia:
+	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
+	sncast --account=sepolia invoke --contract-address $(ADDRESS) --network sepolia --function $(FUNC) --arguments $$FELT_ARG
+
+call_str:
 	@RESULT=$$(sncast --profile=devnet call \
-		--contract-address=$(ADDRESS) \
+		--contract-address=$(ADDRESS)\
 		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
 	echo "Raw felt: $$RESULT"; \
 	echo -n "Decoded: "; \
 	python3 felt252convert.py --to-str-hex $$RESULT
+
+call_str_sepolia:
+	@RESULT=$$(sncast --account=sepolia call \
+		--contract-address=$(ADDRESS)	 --network sepolia  \
+		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
+	echo "Raw felt: $$RESULT"; \
+	echo -n "Decoded: "; \
+	python3 felt252convert.py --to-str-hex $$RESULT
+

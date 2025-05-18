@@ -5,7 +5,7 @@ First contract deployment in starknet-goerli test net
 - Created make file to automate the deployment 
 - Created  
   - Added new python script for converting strings to felt252 vs.
-  - Added bash file for generating makefile template.
+  - Added bash file for generating makefile template.The white space problems kinda hussle so use bash script to create template.
     usage :
     ```
     chmod +x generate_makef.bash
