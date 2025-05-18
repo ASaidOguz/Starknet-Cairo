@@ -1,3 +1,4 @@
 /target
 /snfoundry.toml/
 /Scarb.lock
+/.snfoundry_cache
