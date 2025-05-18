@@ -1,5 +1,29 @@
 # ========= StarkNet Makefile =========
 
+.PHONY: help start_dev set_account declare_local deploy_contract invoke_string_arg call_string_arg
+
+help:
+	@echo "StarkNet Makefile Commands:"
+	@echo ""
+	@echo "  make start_dev"
+	@echo "      Starts starknet-devnet with seed=0."
+	@echo ""
+	@echo "  make set_account"
+	@echo "      Imports a devnet account using sncast with preconfigured private key and address."
+	@echo ""
+	@echo "  make declare_local CONTRACT_NAME=<contract_name>"
+	@echo "      Declares a contract using the given name (should match your Scarb.toml or compiled artifacts)."
+	@echo ""
+	@echo "  make deploy_contract CLASS_HASH=<class_hash> CALLDATA='<comma_separated_values>'"
+	@echo "      Deploys a contract with constructor calldata passed as string, auto-converted to felt252."
+	@echo ""
+	@echo "  make invoke_string_arg ADDRESS=<contract_address> FUNC=<function_name> CALLDATA='<comma_separated_values>'"
+	@echo "      Invokes a function with calldata passed as string (converted to felt252)."
+	@echo ""
+	@echo "  make call_string_arg ADDRESS=<contract_address> FUNC=<function_name>"
+	@echo "      Calls a view function and decodes the felt252 result back to string."
+	@echo ""
+
 start_dev:
 	starknet-devnet --seed=0
 
@@ -22,6 +46,7 @@ deploy_contract:
 invoke_string_arg:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
 	sncast --profile=devnet invoke --contract-address $(ADDRESS) --function $(FUNC) --arguments $$FELT_ARG
+
 call_string_arg:
 	@RESULT=$$(sncast --profile=devnet call \
 		--contract-address=$(ADDRESS) \

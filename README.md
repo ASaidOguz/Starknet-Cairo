@@ -11,8 +11,16 @@ First contract deployment in starknet-goerli test net
     chmod +x generate_makef.bash
     ./generate_makef.bash
     ```
+- Contract needs string value for constructor and setter function however it needs to be converted into felt252 hexadecimal value, getter function will return felt252 hexadecimal so our python converter can convert them as shown in makefile.
+  value of string. 
 - Converter can be used seperately if needed.
-- Setting class_hash value into json file and reading it for deployment purposes
+
+
+- Please use help command to see the other commands and effects.
+```
+make help 
+```
+
 
 ```
 git clone https://github.com/ASaidOguz/Starknet-Cairo
