@@ -1,6 +1,8 @@
 # ========= StarkNet Makefile =========
 
-.PHONY: help start_dev set_account declare_local deploy_contract invoke_string_arg call_string_arg
+SHELL := /bin/bash
+
+.PHONY: help start_dev set_account declare_local deploy_contract invoke_string_arg call_string_arg test
 
 help:
 	@echo "StarkNet Makefile Commands:"
@@ -23,6 +25,9 @@ help:
 	@echo "  make call_string_arg ADDRESS=<contract_address> FUNC=<function_name>"
 	@echo "      Calls a view function and decodes the felt252 result back to string."
 	@echo ""
+	@echo "  make test"
+	@echo "      Runs the tests using Scarb. Needs to be set as:    test = \"snforge test\"    inside [script] Scarb.toml for Foundry testing."
+	@echo ""
 
 start_dev:
 	starknet-devnet --seed=0
@@ -44,13 +49,15 @@ deploy_sepolia_account:
 
 declare_local:
 	sncast --profile=devnet declare --contract-name=$(CONTRACT_NAME)
+
 declare_sepolia:
 	sncast --account=sepolia declare \
-    --contract-name=$(CONTRACT_NAME) \
-    --network=sepolia
+	--contract-name=$(CONTRACT_NAME) \
+	--network=sepolia
 
 deploy_contract:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
+	echo "Constructor calldata (felt252): $$FELT_ARG"; \
 	sncast --profile=devnet deploy --class-hash=$(CLASS_HASH) --salt=0 --constructor-calldata=$$FELT_ARG
 
 deploy_contract_sepolia:
@@ -59,15 +66,15 @@ deploy_contract_sepolia:
 
 invoke_str:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --profile=devnet invoke --contract-address $(ADDRESS) --network sepolia --function $(FUNC) --arguments $$FELT_ARG
+	sncast --profile=devnet invoke --contract-address=$(ADDRESS) --function=$(FUNC) --arguments $$FELT_ARG
 
 invoke_str_sepolia:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --account=sepolia invoke --contract-address $(ADDRESS) --network sepolia --function $(FUNC) --arguments $$FELT_ARG
+	sncast --account=sepolia invoke --contract-address=$(ADDRESS) --network sepolia --function=$(FUNC) --arguments $$FELT_ARG
 
 call_str:
 	@RESULT=$$(sncast --profile=devnet call \
-		--contract-address=$(ADDRESS)\
+		--contract-address=$(ADDRESS) \
 		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
 	echo "Raw felt: $$RESULT"; \
 	echo -n "Decoded: "; \
@@ -75,9 +82,11 @@ call_str:
 
 call_str_sepolia:
 	@RESULT=$$(sncast --account=sepolia call \
-		--contract-address=$(ADDRESS)	 --network sepolia  \
+		--contract-address=$(ADDRESS) --network sepolia \
 		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
 	echo "Raw felt: $$RESULT"; \
 	echo -n "Decoded: "; \
 	python3 felt252convert.py --to-str-hex $$RESULT
 
+test:
+	scarb test

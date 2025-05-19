@@ -1,9 +1,11 @@
 #!/bin/bash
 
-cat > Makefile << 'EOF'
+cat << 'EOF' > Makefile
 # ========= StarkNet Makefile =========
 
-.PHONY: help start_dev set_account declare_local deploy_contract invoke_string_arg call_string_arg
+SHELL := /bin/bash
+
+.PHONY: help start_dev set_account declare_local deploy_contract invoke_string_arg call_string_arg test
 
 help:
 	@echo "StarkNet Makefile Commands:"
@@ -14,35 +16,20 @@ help:
 	@echo "  make set_account"
 	@echo "      Imports a devnet account using sncast with preconfigured private key and address."
 	@echo ""
-	@echo "  make set_sepolia_account"
-	@echo "      Creates a new account on StarkNet Sepolia testnet and saves it under the name 'sepolia'."
-	@echo ""
-	@echo "  make deploy_sepolia_account"
-	@echo "      Deploys the previously created Sepolia account to the network."
-	@echo ""
 	@echo "  make declare_local CONTRACT_NAME=<contract_name>"
-	@echo "      Declares a contract locally using the given name (from Scarb.toml or compiled artifacts)."
-	@echo ""
-	@echo "  make declare_sepolia CONTRACT_NAME=<contract_name>"
-	@echo "      Declares a contract to Sepolia testnet using 'sepolia' account profile."
+	@echo "      Declares a contract using the given name (should match your Scarb.toml or compiled artifacts)."
 	@echo ""
 	@echo "  make deploy_contract CLASS_HASH=<class_hash> CALLDATA='<comma_separated_values>'"
-	@echo "      Deploys a local contract with constructor calldata passed as string (auto-converted to felt252)."
+	@echo "      Deploys a contract with constructor calldata passed as string, auto-converted to felt252."
 	@echo ""
-	@echo "  make deploy_contract_sepolia CLASS_HASH=<class_hash> CALLDATA='<comma_separated_values>'"
-	@echo "      Deploys a Sepolia contract using 'sepolia' account and calldata as string."
+	@echo "  make invoke_string_arg ADDRESS=<contract_address> FUNC=<function_name> CALLDATA='<comma_separated_values>'"
+	@echo "      Invokes a function with calldata passed as string (converted to felt252)."
 	@echo ""
-	@echo "  make invoke_str ADDRESS=<contract_address> FUNC=<function_name> CALLDATA='<comma_separated_values>'"
-	@echo "      Invokes a function on devnet with string calldata converted to felt252."
+	@echo "  make call_string_arg ADDRESS=<contract_address> FUNC=<function_name>"
+	@echo "      Calls a view function and decodes the felt252 result back to string."
 	@echo ""
-	@echo "  make invoke_str_sepolia ADDRESS=<contract_address> FUNC=<function_name> CALLDATA='<comma_separated_values>'"
-	@echo "      Invokes a function on Sepolia with string calldata converted to felt252."
-	@echo ""
-	@echo "  make call_str ADDRESS=<contract_address> FUNC=<function_name>"
-	@echo "      Calls a view function on devnet and decodes the result from felt to string."
-	@echo ""
-	@echo "  make call_str_sepolia ADDRESS=<contract_address> FUNC=<function_name>"
-	@echo "      Calls a view function on Sepolia and decodes the result from felt to string."
+	@echo "  make test"
+	@echo "      Runs the tests using Scarb. Needs to be set as:    test = \"snforge test\"    inside [script] Scarb.toml for Foundry testing."
 	@echo ""
 
 start_dev:
@@ -73,6 +60,7 @@ declare_sepolia:
 
 deploy_contract:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
+	echo "Constructor calldata (felt252): $$FELT_ARG"; \
 	sncast --profile=devnet deploy --class-hash=$(CLASS_HASH) --salt=0 --constructor-calldata=$$FELT_ARG
 
 deploy_contract_sepolia:
@@ -81,11 +69,11 @@ deploy_contract_sepolia:
 
 invoke_str:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --profile=devnet invoke --contract-address $(ADDRESS) --network sepolia --function $(FUNC) --arguments $$FELT_ARG
+	sncast --profile=devnet invoke --contract-address=$(ADDRESS) --function=$(FUNC) --arguments $$FELT_ARG
 
 invoke_str_sepolia:
 	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --account=sepolia invoke --contract-address $(ADDRESS) --network sepolia --function $(FUNC) --arguments $$FELT_ARG
+	sncast --account=sepolia invoke --contract-address=$(ADDRESS) --network sepolia --function=$(FUNC) --arguments $$FELT_ARG
 
 call_str:
 	@RESULT=$$(sncast --profile=devnet call \
@@ -102,6 +90,7 @@ call_str_sepolia:
 	echo "Raw felt: $$RESULT"; \
 	echo -n "Decoded: "; \
 	python3 felt252convert.py --to-str-hex $$RESULT
-EOF
 
-echo "✅ Makefile created successfully with full help documentation."
+test:
+	scarb test
+EOF
