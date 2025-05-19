@@ -1,13 +1,13 @@
 // ** ./src/lib.cairo **
-
+///MyContractInterface
 #[starknet::interface]
-trait MyContractInterface<T> {
+pub trait NineCairoInterface<T> {
     fn name_get(self: @T) -> felt252;
     fn name_set(ref self: T, name: felt252);
 }
 
 #[starknet::contract]
-mod nine_cairo {
+pub mod NineCairo {
    
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     
@@ -34,7 +34,7 @@ mod nine_cairo {
     }
 
     #[abi(embed_v0)]
-    impl MyContract of super::MyContractInterface<ContractState> {
+    impl NineCairo of super::NineCairoInterface<ContractState> {
         fn name_get(self: @ContractState) -> felt252 {
             self.name.read()
         }
@@ -46,3 +46,4 @@ mod nine_cairo {
         }
     }
 }
+

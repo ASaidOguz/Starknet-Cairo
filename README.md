@@ -14,7 +14,7 @@ First contract deployment in starknet-goerli test net
 - Contract needs string value for constructor and setter function however it needs to be converted into felt252 hexadecimal value, getter function will return felt252 hexadecimal so our python converter can convert them as shown in makefile.
   value of string. 
 - Converter can be used seperately if needed.
-
+- Simple test added by snforge(Starknet Foundry) +++
 
 - Please use help command to see the other commands and effects.
 ```

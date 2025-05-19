@@ -1,9 +1,15 @@
 [package]
-name = "first_cairo"
+name = "nine_cairo"
 version = "0.1.0"
 edition = "2024_07"
-# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
+
 [dependencies]
 starknet = "2.11.4"
+snforge_std = "0.42.0"
 
 [[target.starknet-contract]]
+
+[tool.snforge]
+
+[scripts]
+test = "snforge test"
