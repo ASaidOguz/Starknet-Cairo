@@ -1,33 +1,4 @@
-# ========= StarkNet Makefile =========
-
-SHELL := /bin/bash
-
-.PHONY: help start_dev set_account declare_local deploy_contract invoke_string_arg call_string_arg test
-
-help:
-	@echo "StarkNet Makefile Commands:"
-	@echo ""
-	@echo "  make start_dev"
-	@echo "      Starts starknet-devnet with seed=0."
-	@echo ""
-	@echo "  make set_account"
-	@echo "      Imports a devnet account using sncast with preconfigured private key and address."
-	@echo ""
-	@echo "  make declare_local CONTRACT_NAME=<contract_name>"
-	@echo "      Declares a contract using the given name (should match your Scarb.toml or compiled artifacts)."
-	@echo ""
-	@echo "  make deploy_contract CLASS_HASH=<class_hash> CALLDATA='<comma_separated_values>'"
-	@echo "      Deploys a contract with constructor calldata passed as string, auto-converted to felt252."
-	@echo ""
-	@echo "  make invoke_string_arg ADDRESS=<contract_address> FUNC=<function_name> CALLDATA='<comma_separated_values>'"
-	@echo "      Invokes a function with calldata passed as string (converted to felt252)."
-	@echo ""
-	@echo "  make call_string_arg ADDRESS=<contract_address> FUNC=<function_name>"
-	@echo "      Calls a view function and decodes the felt252 result back to string."
-	@echo ""
-	@echo "  make test"
-	@echo "      Runs the tests using Scarb. Needs to be set as:    test = \"snforge test\"    inside [script] Scarb.toml for Foundry testing."
-	@echo ""
+.PHONY: start_dev set_account set_sepolia_account deploy_sepolia_account test test_coverage clear_coverage
 
 start_dev:
 	starknet-devnet --seed=0
@@ -47,46 +18,112 @@ set_sepolia_account:
 deploy_sepolia_account:
 	sncast account deploy --network sepolia --name sepolia
 
-declare_local:
-	sncast --profile=devnet declare --contract-name=$(CONTRACT_NAME)
-
-declare_sepolia:
-	sncast --account=sepolia declare \
-	--contract-name=$(CONTRACT_NAME) \
-	--network=sepolia
-
-deploy_contract:
-	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	echo "Constructor calldata (felt252): $$FELT_ARG"; \
-	sncast --profile=devnet deploy --class-hash=$(CLASS_HASH) --salt=0 --constructor-calldata=$$FELT_ARG
-
-deploy_contract_sepolia:
-	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --account=sepolia deploy --class-hash=$(CLASS_HASH) --network sepolia --constructor-calldata=$$FELT_ARG
-
-invoke_str:
-	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --profile=devnet invoke --contract-address=$(ADDRESS) --function=$(FUNC) --arguments $$FELT_ARG
-
-invoke_str_sepolia:
-	@FELT_ARG=$$(python3 felt252convert.py --to-felt "$(CALLDATA)"); \
-	sncast --account=sepolia invoke --contract-address=$(ADDRESS) --network sepolia --function=$(FUNC) --arguments $$FELT_ARG
-
-call_str:
-	@RESULT=$$(sncast --profile=devnet call \
-		--contract-address=$(ADDRESS) \
-		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
-	echo "Raw felt: $$RESULT"; \
-	echo -n "Decoded: "; \
-	python3 felt252convert.py --to-str-hex $$RESULT
-
-call_str_sepolia:
-	@RESULT=$$(sncast --account=sepolia call \
-		--contract-address=$(ADDRESS) --network sepolia \
-		--function=$(FUNC) | grep -o '0x[0-9a-fA-F]\+'); \
-	echo "Raw felt: $$RESULT"; \
-	echo -n "Decoded: "; \
-	python3 felt252convert.py --to-str-hex $$RESULT
-
+# Testing and Coverage
 test:
+	@echo "Running tests..."
 	scarb test
+
+# Coverage Report Generation
+PROJECT_NAME := $(shell grep '^name' Scarb.toml | head -n1 | sed 's/name *= *//; s/"//g')
+REPORT_DIR ?= coverage_report
+REPORTS_BASE ?= /mnt/c/stark-reports/coverage-reports
+PROJECT_REPORT_DIR ?= $(REPORTS_BASE)/$(PROJECT_NAME)
+WINDOWS_REPORT_DIR = C:\\stark-reports\\coverage-reports\\$(PROJECT_NAME)
+CHROME_PATH ?= C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe
+
+test_coverage:
+	snforge test --coverage
+	genhtml -o $(REPORT_DIR) ./coverage/coverage.lcov
+	mkdir -p $(PROJECT_REPORT_DIR)
+	cp -r $(REPORT_DIR)/* $(PROJECT_REPORT_DIR)/
+	powershell.exe -Command "Start-Process '$(CHROME_PATH)' -ArgumentList '$(WINDOWS_REPORT_DIR)\\index.html'"
+
+clear_coverage:
+	cairo-coverage clean
+
+# Declare and Deploy targets for NineCairo
+
+declare_local_NineCairo:
+	@echo "Declaring NineCairo (local)..."
+	@mkdir -p deployments/devnet/local
+	@if sncast --profile=devnet declare --contract-name=NineCairo > tmp_declare_output.txt 2>&1; then \
+		class_hash=$$(grep -o 'class_hash: 0x[0-9a-fA-F]*' tmp_declare_output.txt | cut -d ' ' -f2); \
+		if [ -n "$$class_hash" ]; then \
+			timestamp=$$(date +%s); \
+			printf '{"class_hash": "%s", "contract_name": "%s", "timestamp": %s}\n' "$$class_hash" "NineCairo" "$$timestamp" > deployments/devnet/local/NineCairo.json; \
+			echo "✅ Saved class hash: $$class_hash to deployments/devnet/local/NineCairo.json"; \
+		else \
+			echo "❌ Failed to extract class hash from output"; \
+			cat tmp_declare_output.txt; \
+		fi; \
+	else \
+		echo "❌ Declaration failed for NineCairo"; \
+		cat tmp_declare_output.txt; \
+	fi; \
+	rm -f tmp_declare_output.txt
+
+declare_sepolia_NineCairo:
+	@echo "Declaring NineCairo (sepolia)..."
+	@mkdir -p deployments/sepolia/sepolia
+	@if sncast --account=sepolia declare --contract-name=NineCairo --network sepolia > tmp_declare_output.txt 2>&1; then \
+		class_hash=$$(grep -o 'class_hash: 0x[0-9a-fA-F]*' tmp_declare_output.txt | cut -d ' ' -f2); \
+		if [ -n "$$class_hash" ]; then \
+			timestamp=$$(date +%s); \
+			printf '{"class_hash": "%s", "contract_name": "%s", "timestamp": %s}\n' "$$class_hash" "NineCairo" "$$timestamp" > deployments/sepolia/sepolia/NineCairo.json; \
+			echo "✅ Saved class hash: $$class_hash to deployments/sepolia/sepolia/NineCairo.json"; \
+		else \
+			echo "❌ Failed to extract class hash from output"; \
+			cat tmp_declare_output.txt; \
+		fi; \
+	else \
+		echo "❌ Declaration failed for NineCairo"; \
+		cat tmp_declare_output.txt; \
+	fi; \
+	rm -f tmp_declare_output.txt
+
+deploy_local_NineCairo:
+	@echo "Deploying NineCairo (local)..."
+	@mkdir -p deployments/devnet/local
+	@if [ ! -f "deployments/devnet/local/NineCairo.json" ]; then \
+		echo "❌ Class hash file not found. Please declare the contract first with: make declare_local_NineCairo"; \
+		exit 1; \
+	fi
+	$(eval CLASS_HASH := $(shell jq -r '.class_hash' deployments/devnet/local/NineCairo.json))
+	@output=$$(sncast --profile=devnet deploy \
+		--arguments $(ARGUMENTS) \
+		--class-hash=$(CLASS_HASH) \
+		--salt=5 \
+		); \
+	contract_address=$$(echo "$$output" | grep "contract_address:" | awk '{print $$2}'); \
+	transaction_hash=$$(echo "$$output" | grep "transaction_hash:" | awk '{print $$2}'); \
+	timestamp=$$(date +%s); \
+	printf '{"contract_address": "%s", "transaction_hash": "%s", "class_hash": "%s", "contract_name": "%s", "timestamp": %s}\n' "$$contract_address" "$$transaction_hash" "$(CLASS_HASH)" "NineCairo" "$$timestamp" > deployments/devnet/local/NineCairo.deployment.json; \
+	echo "✅ Deployed NineCairo successfully!"; \
+	echo "Contract Address: $$contract_address"; \
+	echo "Transaction Hash: $$transaction_hash"; \
+	echo "Deployment saved to: deployments/devnet/local/NineCairo.deployment.json"; \
+	echo "$$output"
+
+deploy_sepolia_NineCairo:
+	@echo "Deploying NineCairo (sepolia)..."
+	@mkdir -p deployments/sepolia/sepolia
+	@if [ ! -f "deployments/sepolia/sepolia/NineCairo.json" ]; then \
+		echo "❌ Class hash file not found. Please declare the contract first with: make declare_sepolia_NineCairo"; \
+		exit 1; \
+	fi
+	$(eval CLASS_HASH := $(shell jq -r '.class_hash' deployments/sepolia/sepolia/NineCairo.json))
+	@output=$$(sncast --account=sepolia deploy \
+		--arguments $(ARGUMENTS) \
+		--class-hash=$(CLASS_HASH) \
+		--network sepolia \
+		--salt=5 \
+		); \
+	contract_address=$$(echo "$$output" | grep "contract_address:" | awk '{print $$2}'); \
+	transaction_hash=$$(echo "$$output" | grep "transaction_hash:" | awk '{print $$2}'); \
+	timestamp=$$(date +%s); \
+	printf '{"contract_address": "%s", "transaction_hash": "%s", "class_hash": "%s", "contract_name": "%s", "timestamp": %s}\n' "$$contract_address" "$$transaction_hash" "$(CLASS_HASH)" "NineCairo" "$$timestamp" > deployments/sepolia/sepolia/NineCairo.deployment.json; \
+	echo "✅ Deployed NineCairo successfully!"; \
+	echo "Contract Address: $$contract_address"; \
+	echo "Transaction Hash: $$transaction_hash"; \
+	echo "Deployment saved to: deployments/sepolia/sepolia/NineCairo.deployment.json"; \
+	echo "$$output"

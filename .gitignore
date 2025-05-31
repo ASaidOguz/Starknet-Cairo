@@ -2,3 +2,7 @@
 /snfoundry.toml/
 /Scarb.lock
 /.snfoundry_cache
+coverage/
+coverage_report/
+deployments/
+snfoundry_trace/

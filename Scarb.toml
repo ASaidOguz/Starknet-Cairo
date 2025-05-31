@@ -7,6 +7,18 @@ edition = "2024_07"
 starknet = "2.11.4"
 snforge_std = "0.42.0"
 
+[dev-dependencies]
+openzeppelin_utils = "1.0.0"
+snforge_std = "0.41.0"
+openzeppelin_testing = "3.0.0"
+assert_macros = "2.9.4"
+
+# This part added for coverage report generating.(lcov file)
+[profile.dev.cairo]
+unstable-add-statements-functions-debug-info = true
+unstable-add-statements-code-locations-debug-info = true
+inlining-strategy = "avoid"
+
 [[target.starknet-contract]]
 
 [tool.snforge]
