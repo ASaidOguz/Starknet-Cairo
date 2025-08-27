@@ -1,55 +1,47 @@
-
-#[cfg(test)]
-
+use starknet::ContractAddress;
 
 use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 
-use nine_cairo::NineCairoInterfaceDispatcher;
-use nine_cairo::NineCairoInterfaceDispatcherTrait;
-use openzeppelin_utils::serde::SerializedAppend;
+use basecamp13_homework::IHelloStarknetSafeDispatcher;
+use basecamp13_homework::IHelloStarknetSafeDispatcherTrait;
+use basecamp13_homework::IHelloStarknetDispatcher;
+use basecamp13_homework::IHelloStarknetDispatcherTrait;
 
-// Declare and deploy the contract and return its dispatcher.
-fn deploy(name: ByteArray) -> NineCairoInterfaceDispatcher {
-    let contract = declare("NineCairo").unwrap().contract_class();
-    let name: ByteArray = "Ahmet";
-    let mut calldata = array![];
-    calldata.append_serde(name);
-
-    let (contract_address, _) = contract.deploy(@calldata).unwrap();
-
-    // Return the dispatcher.
-    // It allows to interact with the contract based on its interface.
-    NineCairoInterfaceDispatcher { contract_address }
+fn deploy_contract(name: ByteArray) -> ContractAddress {
+    let contract = declare(name).unwrap().contract_class();
+    let (contract_address, _) = contract.deploy(@ArrayTrait::new()).unwrap();
+    contract_address
 }
 
 #[test]
-fn test_deploy() {
-    let name_felt: ByteArray = "Ahmet";
-    let contract = deploy(name_felt.clone());
-    
-    assert(contract.name_get() == name_felt, 'Name does not match');
+fn test_increase_balance() {
+    let contract_address = deploy_contract("HelloStarknet");
+
+    let dispatcher = IHelloStarknetDispatcher { contract_address };
+
+    let balance_before = dispatcher.get_balance();
+    assert(balance_before == 0, 'Invalid balance');
+
+    dispatcher.increase_balance(42);
+
+    let balance_after = dispatcher.get_balance();
+    assert(balance_after == 42, 'Invalid balance');
 }
 
 #[test]
-fn test_invoke_call_correct(){
-    let name_felt: ByteArray = "Ahmet";
-    let contract = deploy(name_felt.clone());
-    assert(contract.name_get() == name_felt, 'Name does not match');
+#[feature("safe_dispatcher")]
+fn test_cannot_increase_balance_with_zero_value() {
+    let contract_address = deploy_contract("HelloStarknet");
 
-    let new_name_felt:ByteArray="Alexander";
-    contract.name_set(new_name_felt.clone());
-    assert(contract.name_get() == new_name_felt, 'New Name does not match');
+    let safe_dispatcher = IHelloStarknetSafeDispatcher { contract_address };
+
+    let balance_before = safe_dispatcher.get_balance().unwrap();
+    assert(balance_before == 0, 'Invalid balance');
+
+    match safe_dispatcher.increase_balance(0) {
+        Result::Ok(_) => core::panic_with_felt252('Should have panicked'),
+        Result::Err(panic_data) => {
+            assert(*panic_data.at(0) == 'Amount cannot be 0', *panic_data.at(0));
+        }
+    };
 }
-
-
-// You use @ when:
-
-// The function expects ownership, not a reference
-
-// You’re working with a type that doesn't implement Copy
-
-// You’re okay not using the variable again
-
-// Use @ when you want to move ownership, and you won’t reuse the variable.
-
-// Use .clone() when you need the variable again after using it.

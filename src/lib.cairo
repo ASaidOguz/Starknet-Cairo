@@ -1,57 +1,32 @@
-// ** ./src/lib.cairo **
-///MyContractInterface
+/// Interface representing `HelloContract`.
+/// This interface allows modification and retrieval of the contract balance.
 #[starknet::interface]
-pub trait NineCairoInterface<T> {
-    fn name_get(self: @T) -> ByteArray;
-    fn name_set(ref self: T, name: ByteArray);
+pub trait IHelloStarknet<TContractState> {
+    /// Increase contract balance.
+    fn increase_balance(ref self: TContractState, amount: felt252);
+    /// Retrieve contract balance.
+    fn get_balance(self: @TContractState) -> felt252;
 }
 
+/// Simple contract for managing balance.
 #[starknet::contract]
-pub mod NineCairo {
-   
+mod HelloStarknet {
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
-    
+
     #[storage]
     struct Storage {
-        name: ByteArray,
-    }
-   
-    #[event]
-    #[derive(Drop, starknet::Event)]
-    enum Event {
-        NameChanged: NameChanged,
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct NameChanged {
-        previous: ByteArray,
-        current: ByteArray,
-    }
-
-    #[constructor]
-    fn constructor(ref self: ContractState, name: ByteArray) {
-        self.name.write(name);
+        balance: felt252,
     }
 
     #[abi(embed_v0)]
-    impl NineCairo of super::NineCairoInterface<ContractState> {
-        fn name_get(self: @ContractState) -> ByteArray {
-            self.name.read()
+    impl HelloStarknetImpl of super::IHelloStarknet<ContractState> {
+        fn increase_balance(ref self: ContractState, amount: felt252) {
+            assert(amount != 0, 'Amount cannot be 0');
+            self.balance.write(self.balance.read() + amount);
         }
 
-        fn name_set(ref self: ContractState, name: ByteArray) {
-            let previous = self.name.read();
-            self.name.write(name.clone());
-            self.emit(NameChanged { previous, current: name });
+        fn get_balance(self: @ContractState) -> felt252 {
+            self.balance.read()
         }
     }
 }
-
-// These types implement Copy, so moving them doesn’t invalidate the original — they are implicitly copied:
-
-// Type	Description
-// felt252	Basic field element (like int)
-// bool	Boolean value
-// u8, u16, u32, u64	Unsigned integers
-// ContractAddress	Contract address (as of now)
-// Structs with #[derive(Copy, Drop)]	You mark them to be Copy

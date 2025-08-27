@@ -5,4 +5,7 @@
 coverage/
 coverage_report/
 deployments/
+snfoundry_trace/.snfoundry_cache/
 snfoundry_trace/
+coverage/
+profile/
